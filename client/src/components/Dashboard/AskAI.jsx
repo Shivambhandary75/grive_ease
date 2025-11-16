@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import chatbotIcon from "../../assets/chat-bot.png";
 import clipIcon from "../../assets/clip.png";
 
@@ -7,18 +7,25 @@ export default function AskAI() {
     {
       id: 1,
       type: "bot",
-      text: "Hi! I'm your AI assistant. I can help you with complaints, institution information, and more. How can I help you today?",
+      text: "Hi! I'm your AI assistant. I can help you with:\n• Filing complaints\n• Understanding complaint categories\n• Tips for effective complaints\n• Analyzing your complaint\n• Answering questions\n\nWhat would you like help with today?",
       timestamp: new Date(),
     },
   ]);
   const [inputText, setInputText] = useState("");
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const messagesEndRef = useRef(null);
+
+  // Scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
     
-    if (!inputText.trim() && uploadedFiles.length === 0) return;
+    if (!inputText.trim()) return;
 
     // Add user message to chat
     const userMessage = {
@@ -29,36 +36,85 @@ export default function AskAI() {
       timestamp: new Date(),
     };
 
-    setMessages([...messages, userMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInputText("");
     setUploadedFiles([]);
     setIsLoading(true);
+    setError(null);
 
-    // TODO: Call your AI backend API here
-    // Example:
-    // const response = await fetch('/api/ai/chat', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({
-    //     message: inputText,
-    //     files: uploadedFiles
-    //   })
-    // });
-    // const data = await response.json();
-    // Add bot response to chat
-    // setMessages(prev => [...prev, { id: ..., type: 'bot', text: data.response }]);
+    try {
+      // If any files uploaded, send them to RAG first
+      if (uploadedFiles.length > 0) {
+        const formData = new FormData();
+        uploadedFiles.forEach((f) => formData.append("files", f));
+        await fetch("http://localhost:8080/api/ask-ai-rag/upload", {
+          method: "POST",
+          body: formData,
+        });
+      }
 
-    // For now, show a placeholder response
-    setTimeout(() => {
-      const botMessage = {
+      // Ask question using RAG (Gemini)
+      const response = await fetch("http://localhost:8080/api/ask-ai-rag/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: inputText,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API Error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      // Add bot response to chat
+      if (data.success && (data.data.answer || data.data.response)) {
+        const botMessage = {
+          id: messages.length + 2,
+          type: "bot",
+          text: data.data.answer || data.data.response,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, botMessage]);
+        // show context hints (optional minimal)
+        if (data.data.contexts && data.data.contexts.length) {
+          const ctx = {
+            id: messages.length + 3,
+            type: "bot",
+            text: `References used:\n` +
+              data.data.contexts.map((c, i) => `#${i + 1} (score ${c.score.toFixed?.(3) ?? c.score}): ${c.snippet}`).join("\n\n"),
+            timestamp: new Date(),
+          };
+          setMessages((prev) => [...prev, ctx]);
+        }
+      } else {
+        throw new Error("Invalid response from AI");
+      }
+    } catch (err) {
+      console.error("Error sending message:", err);
+      
+      // Better error messages for common issues
+      let errorMsg = err.message;
+      if (err.message.includes("Failed to fetch") || err.message.includes("NetworkError")) {
+        errorMsg = "Cannot connect to server. Please make sure the server is running (npm run dev).";
+      } else if (err.message.includes("API Error")) {
+        errorMsg = "Server returned an error. Please try again.";
+      }
+      
+      setError(errorMsg);
+
+      // Add error message to chat
+      const errorMessage = {
         id: messages.length + 2,
         type: "bot",
-        text: "I received your message! (AI logic not yet configured. Please add your AI backend integration.)",
+        text: `❌ ${errorMsg}`,
         timestamp: new Date(),
       };
-      setMessages((prev) => [...prev, botMessage]);
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   const handleFileUpload = (e) => {
@@ -75,10 +131,11 @@ export default function AskAI() {
       {
         id: 1,
         type: "bot",
-        text: "Hi! I'm your AI assistant. I can help you with complaints, institution information, and more. How can I help you today?",
+        text: "Hi! I'm your AI assistant. I can help you with:\n• Filing complaints\n• Understanding complaint categories\n• Tips for effective complaints\n• Analyzing your complaint\n• Answering questions\n\nWhat would you like help with today?",
         timestamp: new Date(),
       },
     ]);
+    setError(null);
   };
 
   return (
@@ -89,9 +146,17 @@ export default function AskAI() {
           <h1 className="text-4xl font-bold text-gray-800">Ask AI</h1>
         </div>
         <p className="text-gray-600 mt-2">
-          Chat with our AI assistant for help with complaints, institution insights, and more
+          Chat with our AI assistant for help with complaints and more
         </p>
       </div>
+
+      {/* Error Alert */}
+      {error && (
+        <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+          <p className="text-red-800 font-semibold">Error:</p>
+          <p className="text-red-700 text-sm">{error}</p>
+        </div>
+      )}
 
       {/* Chat Container */}
       <div className="bg-white rounded-lg shadow-md flex flex-col h-96 md:h-full" style={{ minHeight: "600px" }}>
@@ -117,12 +182,12 @@ export default function AskAI() {
                       : "bg-gray-200 text-gray-800 rounded-bl-none"
                   }`}
                 >
-                  <p className="text-sm">{message.text}</p>
+                  <p className="text-sm whitespace-pre-wrap">{message.text}</p>
                   {message.files && message.files.length > 0 && (
                     <div className="mt-2 space-y-1">
                       {message.files.map((file, idx) => (
                         <div key={idx} className="text-xs opacity-75 flex items-center gap-1">
-                          {file.name}
+                          📎 {file.name}
                         </div>
                       ))}
                     </div>
@@ -150,6 +215,7 @@ export default function AskAI() {
               </div>
             </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
 
         {/* File Upload Preview */}
