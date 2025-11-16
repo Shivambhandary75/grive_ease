@@ -197,3 +197,73 @@ exports.getMe = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+// Update User Profile
+exports.updateProfile = async (req, res) => {
+  try {
+    const { name, department, studentId, employeeId } = req.body;
+
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Update allowed fields
+    if (name) user.name = name;
+    if (department !== undefined) user.department = department;
+
+    // Role-specific updates
+    if (user.role === "student" && studentId !== undefined) {
+      user.studentId = studentId;
+    }
+    if (user.role === "teacher" && employeeId !== undefined) {
+      user.employeeId = employeeId;
+    }
+
+    await user.save();
+
+    // Return updated user without password
+    const updatedUser = await User.findById(user._id)
+      .select("-password")
+      .populate("institution");
+
+    res.json({
+      message: "Profile updated successfully",
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error("Update profile error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Delete User Account
+exports.deleteAccount = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // If user is institutional admin, delete the institution too
+    if (user.role === "institutional" && user.institution) {
+      await Institution.findByIdAndDelete(user.institution);
+      console.log(`Deleted institution: ${user.institution}`);
+    }
+
+    // Delete the user
+    await User.findByIdAndDelete(userId);
+    console.log(`Deleted user: ${userId}`);
+
+    res.json({
+      message: "Account deleted successfully",
+      success: true,
+    });
+  } catch (error) {
+    console.error("Delete account error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};

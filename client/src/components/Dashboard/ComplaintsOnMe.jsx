@@ -84,26 +84,21 @@ export default function ComplaintsOnMe() {
                     <div className="flex items-center gap-3">
                       <h3 className="text-xl font-bold text-gray-800">{complaint.title}</h3>
                       <span className={`inline-block px-3 py-1 rounded text-sm font-semibold ${getStatusColor(complaint.status)}`}>
-                        {complaint.status?.replace('-', ' ').charAt(0).toUpperCase() + complaint.status?.slice(1) || 'N/A'}
+                        {complaint.status?.replace('-', ' ').charAt(0).toUpperCase() + complaint.status?.slice(1) || 'Pending'}
                       </span>
                     </div>
                     <p className="text-gray-600 text-sm mt-1">Complaint ID: {complaint._id?.slice(-6).toUpperCase()}</p>
                   </div>
                   <div className={`text-lg ${getPriorityColor(complaint.priority)}`}>
-                    {complaint.priority?.toUpperCase() || 'N/A'}
+                    {complaint.priority?.toUpperCase() || 'MEDIUM'}
                   </div>
                 </div>
 
                 <p className="text-gray-700 mb-3">{complaint.description}</p>
 
-                <div className="flex justify-between items-center text-sm text-gray-600">
-                  <div>
-                    <p className="font-semibold">Filed by: <span className="text-gray-800">{complaint.isAnonymous ? 'Anonymous' : complaint.complainant?.name || 'Unknown'}</span></p>
-                    <p className="text-xs text-gray-500 mt-1">{new Date(complaint.createdAt).toLocaleDateString()}</p>
-                  </div>
-                  <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded font-semibold transition-colors">
-                    Respond
-                  </button>
+                <div className="text-sm text-gray-600">
+                  <p className="font-semibold">Filed by: <span className="text-gray-800">{complaint.isAnonymous ? 'Anonymous' : complaint.complainant?.name || 'Unknown'}</span></p>
+                  <p className="text-xs text-gray-500 mt-1">{new Date(complaint.createdAt).toLocaleDateString()}</p>
                 </div>
               </div>
             ))}

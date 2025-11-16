@@ -97,7 +97,7 @@ export default function AskAI() {
       // Better error messages for common issues
       let errorMsg = err.message;
       if (err.message.includes("Failed to fetch") || err.message.includes("NetworkError")) {
-        errorMsg = "Cannot connect to server. Please make sure the server is running (npm run dev).";
+        errorMsg = "Cannot connect to server.";
       } else if (err.message.includes("API Error")) {
         errorMsg = "Server returned an error. Please try again.";
       }
@@ -294,10 +294,8 @@ export default function AskAI() {
       <div className="bg-blue-50 border-l-4 border-blue-500 p-6 rounded-lg">
         <h3 className="font-semibold text-blue-900 mb-3">AI Capabilities</h3>
         <ul className="space-y-2 text-sm text-blue-800">
-          <li>✓ Help with filing complaints</li>
           <li>✓ Answer questions about institutions</li>
           <li>✓ Provide complaint tips and advice</li>
-          <li>✓ Upload and analyze documents</li>
           <li>✓ Suggest resolution strategies</li>
         </ul>
       </div>

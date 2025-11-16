@@ -13,16 +13,32 @@ export default function Sidebar({ activeTab, setActiveTab, onLogout, user }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
-  const menuItems = [
-    { id: "dashboard", label: "Dashboard", icon: dashboardIcon },
-    { id: "lodge-complaint", label: "Lodge Complaint", icon: complaintIcon },
-    { id: "check-complaints", label: "My Complaints", icon: checkIcon },
-    { id: "complaint-history", label: "History", icon: historyIcon },
-    { id: "complaints-on-me", label: "On Me", icon: complaintIcon },
-    { id: "browse-institutions", label: "Browse Institutions", icon: schoolIcon },
-    { id: "ask-ai", label: "Ask AI", icon: chatbotIcon },
-    { id: "profile", label: "Profile", icon: userIcon },
-  ];
+  // Different menu items based on user role
+  const getMenuItems = () => {
+    if (user?.role === 'institutional') {
+      return [
+        { id: "dashboard", label: "Dashboard", icon: dashboardIcon },
+        { id: "check-complaints", label: "All Complaints", icon: checkIcon },
+        { id: "browse-institutions", label: "Browse Institutions", icon: schoolIcon },
+        { id: "ask-ai", label: "Ask AI", icon: chatbotIcon },
+        { id: "profile", label: "Profile", icon: userIcon },
+      ];
+    } else {
+      // Student and Teacher menu items
+      return [
+        { id: "dashboard", label: "Dashboard", icon: dashboardIcon },
+        { id: "lodge-complaint", label: "Lodge Complaint", icon: complaintIcon },
+        { id: "check-complaints", label: "My Complaints", icon: checkIcon },
+        { id: "complaint-history", label: "History", icon: historyIcon },
+        { id: "complaints-on-me", label: "On Me", icon: complaintIcon },
+        { id: "browse-institutions", label: "Browse Institutions", icon: schoolIcon },
+        { id: "ask-ai", label: "Ask AI", icon: chatbotIcon },
+        { id: "profile", label: "Profile", icon: userIcon },
+      ];
+    }
+  };
+
+  const menuItems = getMenuItems();
 
   return (
     <div

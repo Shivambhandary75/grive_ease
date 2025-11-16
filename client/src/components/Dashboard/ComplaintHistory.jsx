@@ -91,16 +91,16 @@ export default function ComplaintHistory() {
               <tbody>
                 {complaints.map((complaint) => (
                   <tr key={complaint._id} className="border-b border-gray-200 hover:bg-gray-50">
-                    <td className="py-3 px-4 text-gray-800 font-semibold">{complaint._id?.slice(-6).toUpperCase() || 'N/A'}</td>
+                    <td className="py-3 px-4 text-gray-800 font-semibold">{complaint._id?.slice(-6).toUpperCase() || ''}</td>
                     <td className="py-3 px-4 text-gray-800">{complaint.title}</td>
-                    <td className="py-3 px-4 text-gray-600">{complaint.institution?.name || 'N/A'}</td>
+                    <td className="py-3 px-4 text-gray-600">{complaint.institution?.name || ''}</td>
                     <td className="py-3 px-4 text-gray-600">{new Date(complaint.createdAt).toLocaleDateString()}</td>
                     <td className={`py-3 px-4 ${getPriorityColor(complaint.priority)}`}>
-                      {complaint.priority?.charAt(0).toUpperCase() + complaint.priority?.slice(1) || 'N/A'}
+                      {complaint.priority?.charAt(0).toUpperCase() + complaint.priority?.slice(1) || 'Normal'}
                     </td>
                     <td className="py-3 px-4">
                       <span className={`inline-block px-3 py-1 rounded text-sm font-semibold ${getStatusColor(complaint.status)}`}>
-                        {complaint.status?.replace('-', ' ').charAt(0).toUpperCase() + complaint.status?.slice(1) || 'N/A'}
+                        {complaint.status?.replace('-', ' ').charAt(0).toUpperCase() + complaint.status?.slice(1) || 'Pending'}
                       </span>
                     </td>
                   </tr>

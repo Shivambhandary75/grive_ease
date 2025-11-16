@@ -196,15 +196,31 @@ institutionSchema.methods.updateStats = async function () {
       facilityComplaints: stats[0].facilityComplaints,
     };
 
-    // Calculate rating based on multiple factors
+    // Calculate rating based on complaint resolution performance
     const resolutionRate = this.stats.resolutionRate;
     const resolvedCount = this.stats.resolvedComplaints;
-    const baseRating = resolutionRate / 20; // Convert percentage to 0-5 scale
-    const volumeBonus = Math.min(resolvedCount * 0.01, 2); // Bonus for handling volume (max 2 points)
-    const speedBonus = this.stats.averageResolutionTime < 7 ? 0.5 : 0; // Bonus for quick resolution
+    const totalCount = this.stats.totalComplaints;
 
-    this.rating.average = Math.min(baseRating + volumeBonus + speedBonus, 5);
-    this.rating.count = resolvedCount;
+    // Base rating from resolution rate (0-5 scale)
+    // 100% resolution = 5 stars, 80% = 4 stars, 60% = 3 stars, etc.
+    const baseRating = (resolutionRate / 100) * 5;
+
+    // Activity bonus: institutions handling more complaints get slight boost (max 0.5)
+    const activityBonus = Math.min(totalCount * 0.01, 0.5);
+
+    // Speed bonus if average resolution time is under 7 days
+    const speedBonus = this.stats.averageResolutionTime < 7 ? 0.3 : 0;
+
+    // Penalty for having too many pending complaints
+    const pendingRatio =
+      totalCount > 0 ? this.stats.pendingComplaints / totalCount : 0;
+    const pendingPenalty = pendingRatio > 0.3 ? -0.5 : 0; // Penalty if >30% pending
+
+    this.rating.average = Math.max(
+      0,
+      Math.min(baseRating + activityBonus + speedBonus + pendingPenalty, 5)
+    );
+    this.rating.count = totalCount;
   }
 
   await this.save();
