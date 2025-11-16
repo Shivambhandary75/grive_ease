@@ -1,17 +1,49 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import userIcon from "../../assets/user.png";
 import filesIcon from "../../assets/files.png";
 import ConfirmDialog from "../ConfirmDialog";
 import { useUser } from "../../context/UserContext";
+import { authAPI, getUserData, setUserData as saveUserData } from "../../utils/api";
 
 export default function UserProfile() {
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
-  const { user, updateUserProfile, deleteAccount } = useUser();
+  const { user, setUserData, deleteAccount } = useUser();
   
-  const [formData, setFormData] = useState({...user, avatar: user.avatar || userIcon, collegeIdFile: user.collegeIdFile || null});
+  const [formData, setFormData] = useState({
+    name: user?.name || "",
+    email: user?.email || "",
+    department: user?.department || "",
+    studentId: user?.studentId || "",
+    employeeId: user?.employeeId || "",
+    avatar: user?.avatar || userIcon
+  });
+
+  useEffect(() => {
+    // Fetch latest user data
+    fetchUserData();
+  }, []);
+
+  const fetchUserData = async () => {
+    try {
+      const userData = await authAPI.getMe();
+      setUserData(userData);
+      setFormData({
+        name: userData.name || "",
+        email: userData.email || "",
+        department: userData.department || "",
+        studentId: userData.studentId || "",
+        employeeId: userData.employeeId || "",
+        avatar: userData.avatar || userIcon
+      });
+    } catch (err) {
+      console.error('Failed to fetch user data:', err);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -42,13 +74,40 @@ export default function UserProfile() {
     });
   };
 
-  const handleSave = () => {
-    updateUserProfile(formData);
-    setIsEditing(false);
+  const handleSave = async () => {
+    try {
+      setLoading(true);
+      setError("");
+      
+      const updateData = {
+        name: formData.name,
+        department: formData.department,
+        studentId: formData.studentId,
+        employeeId: formData.employeeId
+      };
+      
+      // Update profile - note: backend might not have PUT /api/auth/me endpoint
+      // For now, just update local context
+      setUserData({ ...user, ...updateData });
+      saveUserData({ ...getUserData(), ...updateData });
+      
+      setIsEditing(false);
+    } catch (err) {
+      setError(err.message || "Failed to update profile");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCancel = () => {
-    setFormData({...user, avatar: user.avatar || userIcon, collegeIdFile: user.collegeIdFile || null});
+    setFormData({
+      name: user?.name || "",
+      email: user?.email || "",
+      department: user?.department || "",
+      studentId: user?.studentId || "",
+      employeeId: user?.employeeId || "",
+      avatar: user?.avatar || userIcon
+    });
     setIsEditing(false);
   };
 
@@ -60,6 +119,12 @@ export default function UserProfile() {
           Manage your account information and preferences
         </p>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border-2 border-red-500 text-red-800 p-4 rounded-lg">
+          <p className="font-semibold">Error: {error}</p>
+        </div>
+      )}
 
       {/* Profile Card */}
       <div className="bg-white rounded-lg shadow-md p-8">

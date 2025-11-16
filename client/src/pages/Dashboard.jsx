@@ -10,6 +10,7 @@ import AskAI from "../components/Dashboard/AskAI";
 import ComplaintHistory from "../components/Dashboard/ComplaintHistory";
 import ComplaintsOnMe from "../components/Dashboard/ComplaintsOnMe";
 import { useUser } from "../context/UserContext";
+import { removeToken, removeUserData } from "../utils/api";
 
 
 export default function Dashboard() {
@@ -47,7 +48,14 @@ export default function Dashboard() {
   };
 
   const handleLogout = () => {
+    // Clear localStorage
+    removeToken();
+    removeUserData();
+    
+    // Clear context
     logout();
+    
+    // Navigate to home
     navigate("/");
   };
 

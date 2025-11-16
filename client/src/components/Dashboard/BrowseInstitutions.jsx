@@ -1,64 +1,33 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import schoolIcon from "../../assets/school.png";
 import searchIcon from "../../assets/search-interface-symbol.png";
 import complaintIcon from "../../assets/complain.png";
+import { institutionsAPI } from "../../utils/api";
 
 export default function BrowseInstitutions() {
-  const [institutions, setInstitutions] = useState([
-    {
-      id: 1,
-      name: "Central University",
-      type: "University",
-      location: "New York",
-      rating: 1.5,
-      totalReviews: 145,
-      complaints: 23,
-      resolved: 19,
-      categories: ["Academic", "Facilities", "Food"],
-      image: schoolIcon,
-    },
-    {
-      id: 2,
-      name: "Lincoln High School",
-      type: "School",
-      location: "Boston",
-      rating: 4.5,
-      totalReviews: 89,
-      complaints: 12,
-      resolved: 11,
-      categories: ["Academic", "Safety"],
-      image: schoolIcon,
-    },
-    {
-      id: 3,
-      name: "Tech Institute",
-      type: "College",
-      location: "San Francisco",
-      rating: 4.0,
-      totalReviews: 234,
-      complaints: 45,
-      resolved: 38,
-      categories: ["Academic", "Facilities", "Staff"],
-      image: schoolIcon,
-    },
-    {
-      id: 4,
-      name: "State Engineering College",
-      type: "College",
-      location: "Chicago",
-      rating: 3.8,
-      totalReviews: 112,
-      complaints: 34,
-      resolved: 28,
-      categories: ["Academic", "Facilities", "Food", "Safety"],
-      image: schoolIcon,
-    },
-  ]);
-
+  const [institutions, setInstitutions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [selectedInstitution, setSelectedInstitution] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [sortBy, setSortBy] = useState("rating");
+
+  useEffect(() => {
+    fetchInstitutions();
+  }, []);
+
+  const fetchInstitutions = async () => {
+    try {
+      setLoading(true);
+      const response = await institutionsAPI.getAll();
+      setInstitutions(response.institutions || response || []);
+    } catch (err) {
+      setError(err.message || "Failed to fetch institutions");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredInstitutions = institutions
     .filter((inst) => {
@@ -94,8 +63,20 @@ export default function BrowseInstitutions() {
         </p>
       </div>
 
-      {/* Search and Filter */}
-      <div className="bg-white p-6 rounded-lg shadow-md space-y-4">
+      {error && (
+        <div className="bg-red-50 border-2 border-red-500 text-red-800 p-4 rounded-lg">
+          <p className="font-semibold">Error: {error}</p>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="bg-white p-8 rounded-lg shadow-md text-center">
+          <p className="text-gray-600">Loading institutions...</p>
+        </div>
+      ) : (
+        <>
+          {/* Search and Filter */}
+          <div className="bg-white p-6 rounded-lg shadow-md space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <input
@@ -299,6 +280,8 @@ export default function BrowseInstitutions() {
           )}
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

@@ -1,45 +1,46 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import filesIcon from "../../assets/files.png";
 import schoolIcon from "../../assets/school.png";
 import checkIcon from "../../assets/check.png";
 import trendIcon from "../../assets/trend.png";
+import { complaintsAPI, getUserData } from "../../utils/api";
+import { useUser } from "../../context/UserContext";
 
 export default function CheckComplaints() {
-  const [complaints, setComplaints] = useState([
-    {
-      id: 1,
-      complaintId: "COM-ABC123",
-      title: "Poor WiFi Connection",
-      institution: "Central University",
-      category: "facilities",
-      date: "2025-11-08",
-      status: "resolved",
-      description: "WiFi is extremely slow in the library",
-      responses: 2,
-    },
-    {
-      id: 2,
-      complaintId: "COM-XYZ789",
-      title: "Canteen Food Quality",
-      institution: "Central University",
-      category: "food",
-      date: "2025-11-07",
-      status: "pending",
-      description: "Food quality has deteriorated significantly",
-      responses: 1,
-    },
-    {
-      id: 3,
-      complaintId: "COM-DEF456",
-      title: "Lab Equipment Not Working",
-      institution: "Central University",
-      category: "academic",
-      date: "2025-11-06",
-      status: "under-review",
-      description: "Microscopes in biology lab need maintenance",
-      responses: 3,
-    },
-  ]);
+  const [complaints, setComplaints] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const { user } = useUser();
+
+  useEffect(() => {
+    fetchComplaints();
+  }, []);
+
+  const fetchComplaints = async () => {
+    try {
+      setLoading(true);
+      // If institutional user, get all complaints for their institution
+      // Otherwise get user's own complaint history
+      const response = user?.role === 'institutional' 
+        ? await complaintsAPI.getInstitutionalComplaints()
+        : await complaintsAPI.getHistory();
+      setComplaints(response.complaints || []);
+    } catch (err) {
+      setError(err.message || "Failed to fetch complaints");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStatusUpdate = async (complaintId, newStatus, comments = "") => {
+    try {
+      await complaintsAPI.updateStatus(complaintId, newStatus, comments);
+      // Refresh complaints
+      fetchComplaints();
+    } catch (err) {
+      setError(err.message || "Failed to update status");
+    }
+  };
 
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [filterStatus, setFilterStatus] = useState("all");
@@ -83,14 +84,30 @@ export default function CheckComplaints() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-4xl font-bold text-gray-800 mb-2">My Complaints</h1>
+        <h1 className="text-4xl font-bold text-gray-800 mb-2">
+          {user?.role === 'institutional' ? 'Manage Complaints' : 'My Complaints'}
+        </h1>
         <p className="text-gray-600">
-          Track and manage all your filed complaints
+          {user?.role === 'institutional' 
+            ? 'Review and manage all complaints for your institution'
+            : 'Track and manage all your filed complaints'}
         </p>
       </div>
 
-      {/* Search and Filter */}
-      <div className="bg-white p-6 rounded-lg shadow-md space-y-4">
+      {error && (
+        <div className="bg-red-50 border-2 border-red-500 text-red-800 p-4 rounded-lg">
+          <p className="font-semibold">Error: {error}</p>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="bg-white p-8 rounded-lg shadow-md text-center">
+          <p className="text-gray-600">Loading complaints...</p>
+        </div>
+      ) : (
+        <>
+          {/* Search and Filter */}
+          <div className="bg-white p-6 rounded-lg shadow-md space-y-4">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
             <input
@@ -236,6 +253,8 @@ export default function CheckComplaints() {
           )}
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

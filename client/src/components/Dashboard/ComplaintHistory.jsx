@@ -1,46 +1,26 @@
+import { useState, useEffect } from "react";
+import { complaintsAPI } from "../../utils/api";
+
 export default function ComplaintHistory() {
-  const complaints = [
-    {
-      id: 1,
-      complaintId: "COM-ABC123",
-      title: "Poor WiFi Connection",
-      institution: "Central University",
-      category: "facilities",
-      date: "2025-11-08",
-      status: "resolved",
-      priority: "medium",
-    },
-    {
-      id: 2,
-      complaintId: "COM-XYZ789",
-      title: "Canteen Food Quality",
-      institution: "Central University",
-      category: "food",
-      date: "2025-11-07",
-      status: "pending",
-      priority: "low",
-    },
-    {
-      id: 3,
-      complaintId: "COM-DEF456",
-      title: "Lab Equipment Not Working",
-      institution: "Central University",
-      category: "academic",
-      date: "2025-11-06",
-      status: "under-review",
-      priority: "high",
-    },
-    {
-      id: 4,
-      complaintId: "COM-GHI789",
-      title: "Broken Chairs in Classroom",
-      institution: "Lincoln High School",
-      category: "facilities",
-      date: "2025-11-05",
-      status: "resolved",
-      priority: "low",
-    },
-  ];
+  const [complaints, setComplaints] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetchComplaints();
+  }, []);
+
+  const fetchComplaints = async () => {
+    try {
+      setLoading(true);
+      const response = await complaintsAPI.getHistory();
+      setComplaints(response.complaints || []);
+    } catch (err) {
+      setError(err.message || "Failed to fetch complaints");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -79,40 +59,56 @@ export default function ComplaintHistory() {
         </p>
       </div>
 
+      {error && (
+        <div className="bg-red-50 border-2 border-red-500 text-red-800 p-4 rounded-lg">
+          <p className="font-semibold">Error: {error}</p>
+        </div>
+      )}
+
       {/* Complaints Table */}
       <div className="bg-white p-6 rounded-lg shadow-md">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b-2 border-gray-300">
-                <th className="text-left py-3 px-4 font-semibold text-gray-700">Complaint ID</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700">Title</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700">Institution</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700">Date</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700">Priority</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {complaints.map((complaint) => (
-                <tr key={complaint.id} className="border-b border-gray-200 hover:bg-gray-50">
-                  <td className="py-3 px-4 text-gray-800 font-semibold">{complaint.complaintId}</td>
-                  <td className="py-3 px-4 text-gray-800">{complaint.title}</td>
-                  <td className="py-3 px-4 text-gray-600">{complaint.institution}</td>
-                  <td className="py-3 px-4 text-gray-600">{complaint.date}</td>
-                  <td className={`py-3 px-4 ${getPriorityColor(complaint.priority)}`}>
-                    {complaint.priority.charAt(0).toUpperCase() + complaint.priority.slice(1)}
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className={`inline-block px-3 py-1 rounded text-sm font-semibold ${getStatusColor(complaint.status)}`}>
-                      {complaint.status.charAt(0).toUpperCase() + complaint.status.slice(1)}
-                    </span>
-                  </td>
+        {loading ? (
+          <div className="text-center py-8">
+            <p className="text-gray-600">Loading complaints...</p>
+          </div>
+        ) : complaints.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-gray-600">No complaints found</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b-2 border-gray-300">
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Complaint ID</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Title</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Institution</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Date</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Priority</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-700">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {complaints.map((complaint) => (
+                  <tr key={complaint._id} className="border-b border-gray-200 hover:bg-gray-50">
+                    <td className="py-3 px-4 text-gray-800 font-semibold">{complaint._id?.slice(-6).toUpperCase() || 'N/A'}</td>
+                    <td className="py-3 px-4 text-gray-800">{complaint.title}</td>
+                    <td className="py-3 px-4 text-gray-600">{complaint.institution?.name || 'N/A'}</td>
+                    <td className="py-3 px-4 text-gray-600">{new Date(complaint.createdAt).toLocaleDateString()}</td>
+                    <td className={`py-3 px-4 ${getPriorityColor(complaint.priority)}`}>
+                      {complaint.priority?.charAt(0).toUpperCase() + complaint.priority?.slice(1) || 'N/A'}
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className={`inline-block px-3 py-1 rounded text-sm font-semibold ${getStatusColor(complaint.status)}`}>
+                        {complaint.status?.replace('-', ' ').charAt(0).toUpperCase() + complaint.status?.slice(1) || 'N/A'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Summary Stats */}
