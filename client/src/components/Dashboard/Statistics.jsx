@@ -12,8 +12,7 @@ export default function Statistics({ setActiveTab }) {
   const [stats, setStats] = useState({
     total: 0,
     resolved: 0,
-    pending: 0,
-    underReview: 0
+    pending: 0
   });
   const [recentComplaints, setRecentComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,8 +33,7 @@ export default function Statistics({ setActiveTab }) {
         setStats({
           total: dashboardStats.totalComplaints || 0,
           resolved: dashboardStats.resolvedComplaints || 0,
-          pending: dashboardStats.pendingComplaints || 0,
-          underReview: dashboardStats.underReviewComplaints || 0
+          pending: dashboardStats.pendingComplaints || 0
         });
         
         complaintsData = await complaintsAPI.getInstitutionalComplaints({ limit: 3 });
@@ -47,8 +45,7 @@ export default function Statistics({ setActiveTab }) {
         setStats({
           total: allComplaints.length,
           resolved: allComplaints.filter(c => c.status === 'resolved').length,
-          pending: allComplaints.filter(c => c.status === 'pending').length,
-          underReview: allComplaints.filter(c => c.status === 'under-review').length
+          pending: allComplaints.filter(c => c.status === 'pending').length
         });
       }
       
@@ -64,7 +61,6 @@ export default function Statistics({ setActiveTab }) {
     { label: "Total Complaints", value: stats.total, icon: complaintIcon, color: "blue" },
     { label: "Resolved", value: stats.resolved, icon: checkIcon, color: "green" },
     { label: "Pending", value: stats.pending, icon: hourglassIcon, color: "yellow" },
-    { label: "Under Review", value: stats.underReview, icon: searchIcon, color: "purple" },
   ];
 
   return (
@@ -105,11 +101,13 @@ export default function Statistics({ setActiveTab }) {
       <div className="bg-white p-6 rounded-lg shadow-md">
         <h2 className="text-2xl font-bold text-gray-800 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button onClick={() => setActiveTab("lodge-complaint")} className="p-4 bg-blue-50 border-2 border-blue-300 rounded-lg hover:bg-blue-100 transition text-left cursor-pointer">
-            <img src={complaintIcon} alt="Lodge Complaint" className="w-8 h-8 mb-2" />
-            <p className="font-semibold text-gray-800">Lodge New Complaint</p>
-            <p className="text-sm text-gray-600">File a new complaint</p>
-          </button>
+          {user?.role !== 'institutional' && (
+            <button onClick={() => setActiveTab("lodge-complaint")} className="p-4 bg-blue-50 border-2 border-blue-300 rounded-lg hover:bg-blue-100 transition text-left cursor-pointer">
+              <img src={complaintIcon} alt="Lodge Complaint" className="w-8 h-8 mb-2" />
+              <p className="font-semibold text-gray-800">Lodge New Complaint</p>
+              <p className="text-sm text-gray-600">File a new complaint</p>
+            </button>
+          )}
           <button onClick={() => setActiveTab("ask-ai")} className="p-4 bg-purple-50 border-2 border-purple-300 rounded-lg hover:bg-purple-100 transition text-left cursor-pointer">
             <img src={chatbotIcon} alt="Ask AI" className="w-8 h-8 mb-2" />
             <p className="font-semibold text-gray-800">Ask AI</p>
