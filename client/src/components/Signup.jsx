@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../context/UserContext";
+import { authAPI, setToken, setUserData as saveUserData } from "../utils/api";
 
 export default function Signup({ switchToLogin }) {
   const [username, setUsername] = useState("");
@@ -8,31 +9,83 @@ export default function Signup({ switchToLogin }) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [signupType, setSignupType] = useState("student");
+  const [institutionName, setInstitutionName] = useState("");
+  const [studentId, setStudentId] = useState("");
+  const [employeeId, setEmployeeId] = useState("");
+  const [department, setDepartment] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
   const { setUserData } = useUser();
 
-  const handleSignup = (e) => {
+  const handleSignup = async (e) => {
     e.preventDefault();
+    setError("");
+    
     if (password !== confirmPassword) {
-      alert("Passwords do not match!");
+      setError("Passwords do not match!");
       return;
     }
-    // TODO: Send signup request to backend with signupType
-    console.log(`Signing up with\nUsername: ${username}\nEmail: ${email}\nPassword: ${password}\nType: ${signupType}`);
     
-    // Save user data to context
-    setUserData({
-      name: username,
-      email: email,
-      role: signupType,
-    });
+    if (!institutionName.trim()) {
+      setError("Institution name is required");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long");
+      return;
+    }
     
-    navigate("/dashboard");
+    setLoading(true);
+    
+    try {
+      const userData = {
+        name: username,
+        email,
+        password,
+        role: signupType,
+        institutionName,
+        department: department || undefined,
+        studentId: signupType === "student" ? studentId : undefined,
+        employeeId: signupType === "teacher" ? employeeId : undefined,
+      };
+      
+      const response = await authAPI.register(userData);
+      
+      // Save token and user data
+      setToken(response.token);
+      saveUserData(response.user);
+      
+      // Update context
+      setUserData({
+        name: response.user.name,
+        email: response.user.email,
+        role: response.user.role,
+        institution: response.user.institution,
+      });
+      
+      navigate("/dashboard");
+    } catch (err) {
+      console.error("Signup error:", err);
+      console.error("Error response:", err.response);
+      console.error("Error message:", err.message);
+      setError(err.message || "Registration failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="bg-white p-8 rounded-lg shadow-xl">
       <h2 className="text-3xl font-bold mb-6 text-center text-gray-800">Sign Up</h2>
+      
+      {/* Error Message */}
+      {error && (
+        <div className="mb-4 p-3 bg-red-50 border-2 border-red-500 text-red-800 rounded">
+          <p className="text-sm font-semibold">{error}</p>
+        </div>
+      )}
       
       {/* Signup Type Selector */}
       <div className="mb-6 p-4 bg-green-50 rounded-lg border-2 border-green-200">
@@ -77,11 +130,12 @@ export default function Signup({ switchToLogin }) {
       <form onSubmit={handleSignup} className="flex flex-col gap-4">
         <input
           type="text"
-          placeholder="Username"
+          placeholder="Full Name"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           className="px-4 py-2 border-2 border-gray-300 rounded focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-200 transition"
           required
+          disabled={loading}
         />
         <input
           type="email"
@@ -90,7 +144,59 @@ export default function Signup({ switchToLogin }) {
           onChange={(e) => setEmail(e.target.value)}
           className="px-4 py-2 border-2 border-gray-300 rounded focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-200 transition"
           required
+          disabled={loading}
         />
+        <input
+          type="text"
+          placeholder="Institution Name *"
+          value={institutionName}
+          onChange={(e) => setInstitutionName(e.target.value)}
+          className="px-4 py-2 border-2 border-gray-300 rounded focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-200 transition"
+          required
+          disabled={loading}
+        />
+        
+        {/* Helper text for institutional signup */}
+        {signupType === "institutional" && (
+          <p className="text-xs text-gray-600 -mt-2 px-1">
+            ℹ️ Creating a new institution? Use a unique name that doesn't exist yet.
+          </p>
+        )}
+        
+        {/* Conditional Fields */}
+        {signupType === "student" && (
+          <input
+            type="text"
+            placeholder="Student ID (optional)"
+            value={studentId}
+            onChange={(e) => setStudentId(e.target.value)}
+            className="px-4 py-2 border-2 border-gray-300 rounded focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-200 transition"
+            disabled={loading}
+          />
+        )}
+        
+        {signupType === "teacher" && (
+          <input
+            type="text"
+            placeholder="Employee ID (optional)"
+            value={employeeId}
+            onChange={(e) => setEmployeeId(e.target.value)}
+            className="px-4 py-2 border-2 border-gray-300 rounded focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-200 transition"
+            disabled={loading}
+          />
+        )}
+        
+        {(signupType === "student" || signupType === "teacher") && (
+          <input
+            type="text"
+            placeholder="Department (optional)"
+            value={department}
+            onChange={(e) => setDepartment(e.target.value)}
+            className="px-4 py-2 border-2 border-gray-300 rounded focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-200 transition"
+            disabled={loading}
+          />
+        )}
+        
         <input
           type="password"
           placeholder="Password"
@@ -98,6 +204,7 @@ export default function Signup({ switchToLogin }) {
           onChange={(e) => setPassword(e.target.value)}
           className="px-4 py-2 border-2 border-gray-300 rounded focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-200 transition"
           required
+          disabled={loading}
         />
         <input
           type="password"
@@ -106,12 +213,14 @@ export default function Signup({ switchToLogin }) {
           onChange={(e) => setConfirmPassword(e.target.value)}
           className="px-4 py-2 border-2 border-gray-300 rounded focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-200 transition"
           required
+          disabled={loading}
         />
         <button
           type="submit"
-          className="bg-green-600 text-white py-2 rounded hover:bg-green-700 transition font-semibold"
+          className="bg-green-600 text-white py-2 rounded hover:bg-green-700 transition font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
+          disabled={loading}
         >
-          Sign Up
+          {loading ? "Signing up..." : "Sign Up"}
         </button>
       </form>
       <p className="mt-4 text-center text-gray-700">

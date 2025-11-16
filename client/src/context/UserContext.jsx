@@ -26,9 +26,38 @@ export function UserProvider({ children }) {
   };
 
   // Function to delete account
-  const deleteAccount = () => {
-    setUser(null);
-    localStorage.removeItem("griefEaseUser");
+  const deleteAccount = async () => {
+    try {
+      const token = user?.token;
+      if (!token) {
+        console.error("No token found");
+        return;
+      }
+
+      const response = await fetch("http://localhost:8080/api/auth/me", {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.error("Failed to delete account:", error);
+        throw new Error(error.message || "Failed to delete account");
+      }
+
+      // Clear local state after successful deletion
+      setUser(null);
+      localStorage.removeItem("griefEaseUser");
+      console.log("Account deleted successfully");
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      // Still clear local state even if API call fails
+      setUser(null);
+      localStorage.removeItem("griefEaseUser");
+    }
   };
 
   // Function to update user profile

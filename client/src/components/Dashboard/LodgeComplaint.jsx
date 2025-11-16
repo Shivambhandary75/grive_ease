@@ -1,11 +1,13 @@
 import { useState } from "react";
 import filesIcon from "../../assets/files.png";
+import { complaintsAPI } from "../../utils/api";
 
 export default function LodgeComplaint() {
   const [formData, setFormData] = useState({
     title: "",
     category: "academic",
     complaintAgainst: "",
+    accusedType: "institutional_facility",
     severity: "medium",
     description: "",
     collegeIdFile: null,
@@ -14,6 +16,8 @@ export default function LodgeComplaint() {
   });
 
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const categories = [
     { value: "academic", label: "Academic" },
@@ -53,24 +57,45 @@ export default function LodgeComplaint() {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Complaint Data:", formData);
-    // TODO: Send to backend
-    setSubmitted(true);
-    setTimeout(() => {
-      setFormData({
-        title: "",
-        category: "academic",
-        complaintAgainst: "",
-        severity: "medium",
-        description: "",
-        collegeIdFile: null,
-        attachments: [],
-        anonymous: false,
-      });
-      setSubmitted(false);
-    }, 3000);
+    setError("");
+    setLoading(true);
+    
+    try {
+      const complaintData = {
+        title: formData.title,
+        description: formData.description,
+        category: formData.category,
+        severity: formData.severity,
+        isAnonymous: formData.anonymous,
+        accusedType: formData.accusedType,
+        accusedName: formData.complaintAgainst,
+        // If we later add user selection for accused, add accusedUserId here
+      };
+      
+      const response = await complaintsAPI.lodge(complaintData);
+      
+      setSubmitted(true);
+      setTimeout(() => {
+        setFormData({
+          title: "",
+          category: "academic",
+          complaintAgainst: "",
+          accusedType: "institutional_facility",
+          severity: "medium",
+          description: "",
+          collegeIdFile: null,
+          attachments: [],
+          anonymous: false,
+        });
+        setSubmitted(false);
+      }, 3000);
+    } catch (err) {
+      setError(err.message || "Failed to submit complaint");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -82,10 +107,15 @@ export default function LodgeComplaint() {
         </p>
       </div>
 
+      {error && (
+        <div className="bg-red-50 border-2 border-red-500 text-red-800 p-4 rounded-lg">
+          <p className="font-semibold">Error: {error}</p>
+        </div>
+      )}
+
       {submitted && (
         <div className="bg-green-50 border-2 border-green-500 text-green-800 p-4 rounded-lg">
           <p className="font-semibold">✓ Complaint submitted successfully!</p>
-          <p className="text-sm">Your complaint ID: #COM-{Math.random().toString(36).substr(2, 9).toUpperCase()}</p>
         </div>
       )}
 
@@ -273,13 +303,15 @@ export default function LodgeComplaint() {
           <div className="flex gap-4">
             <button
               type="submit"
-              className="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition"
+              className="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+              disabled={loading}
             >
-              Submit Complaint
+              {loading ? "Submitting..." : "Submit Complaint"}
             </button>
             <button
               type="reset"
-              className="flex-1 bg-gray-300 text-gray-800 py-3 rounded-lg font-semibold hover:bg-gray-400 transition"
+              className="flex-1 bg-gray-300 text-gray-800 py-3 rounded-lg font-semibold hover:bg-gray-400 transition disabled:opacity-50"
+              disabled={loading}
             >
               Clear Form
             </button>

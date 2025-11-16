@@ -1,75 +1,43 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import schoolIcon from "../../assets/school.png";
 import searchIcon from "../../assets/search-interface-symbol.png";
 import complaintIcon from "../../assets/complain.png";
+import { institutionsAPI } from "../../utils/api";
 
 export default function BrowseInstitutions() {
-  const [institutions, setInstitutions] = useState([
-    {
-      id: 1,
-      name: "Central University",
-      type: "University",
-      location: "New York",
-      rating: 1.5,
-      totalReviews: 145,
-      complaints: 23,
-      resolved: 19,
-      categories: ["Academic", "Facilities", "Food"],
-      image: schoolIcon,
-    },
-    {
-      id: 2,
-      name: "Lincoln High School",
-      type: "School",
-      location: "Boston",
-      rating: 4.5,
-      totalReviews: 89,
-      complaints: 12,
-      resolved: 11,
-      categories: ["Academic", "Safety"],
-      image: schoolIcon,
-    },
-    {
-      id: 3,
-      name: "Tech Institute",
-      type: "College",
-      location: "San Francisco",
-      rating: 4.0,
-      totalReviews: 234,
-      complaints: 45,
-      resolved: 38,
-      categories: ["Academic", "Facilities", "Staff"],
-      image: schoolIcon,
-    },
-    {
-      id: 4,
-      name: "State Engineering College",
-      type: "College",
-      location: "Chicago",
-      rating: 3.8,
-      totalReviews: 112,
-      complaints: 34,
-      resolved: 28,
-      categories: ["Academic", "Facilities", "Food", "Safety"],
-      image: schoolIcon,
-    },
-  ]);
-
+  const [institutions, setInstitutions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [selectedInstitution, setSelectedInstitution] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("all");
   const [sortBy, setSortBy] = useState("rating");
 
+  useEffect(() => {
+    fetchInstitutions();
+  }, []);
+
+  const fetchInstitutions = async () => {
+    try {
+      setLoading(true);
+      const response = await institutionsAPI.getAll();
+      setInstitutions(response.institutions || response || []);
+    } catch (err) {
+      setError(err.message || "Failed to fetch institutions");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredInstitutions = institutions
     .filter((inst) => {
       const matchesSearch = inst.name.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesType = filterType === "all" || inst.type === filterType;
-      return matchesSearch && matchesType;
+      return matchesSearch;
     })
     .sort((a, b) => {
-      if (sortBy === "rating") return b.rating - a.rating;
-      if (sortBy === "complaints") return b.complaints - a.complaints;
-      if (sortBy === "resolved") return b.resolved - a.resolved;
+      if (sortBy === "rating") return (b.rating?.average || 0) - (a.rating?.average || 0);
+      if (sortBy === "complaints") return (b.stats?.totalComplaints || 0) - (a.stats?.totalComplaints || 0);
+      if (sortBy === "resolved") return (b.stats?.resolvedComplaints || 0) - (a.stats?.resolvedComplaints || 0);
       return 0;
     });
 
@@ -94,8 +62,20 @@ export default function BrowseInstitutions() {
         </p>
       </div>
 
-      {/* Search and Filter */}
-      <div className="bg-white p-6 rounded-lg shadow-md space-y-4">
+      {error && (
+        <div className="bg-red-50 border-2 border-red-500 text-red-800 p-4 rounded-lg">
+          <p className="font-semibold">Error: {error}</p>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="bg-white p-8 rounded-lg shadow-md text-center">
+          <p className="text-gray-600">Loading institutions...</p>
+        </div>
+      ) : (
+        <>
+          {/* Search and Filter */}
+          <div className="bg-white p-6 rounded-lg shadow-md space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <input
@@ -144,27 +124,29 @@ export default function BrowseInstitutions() {
               {filteredInstitutions.length > 0 ? (
                 filteredInstitutions.map((institution) => (
                   <div
-                    key={institution.id}
+                    key={institution._id}
                     onClick={() => setSelectedInstitution(institution)}
                     className={`p-4 cursor-pointer transition hover:bg-gray-50 ${
-                      selectedInstitution?.id === institution.id
+                      selectedInstitution?._id === institution._id
                         ? "bg-green-50 border-l-4 border-green-600"
                         : ""
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      <img src={institution.image} alt={institution.name} className="w-8 h-8 flex-shrink-0" />
+                      <div className="w-8 h-8 flex-shrink-0 bg-green-100 rounded-full flex items-center justify-center">
+                        <span className="text-green-600 font-bold">{institution.name.charAt(0)}</span>
+                      </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-gray-800 truncate">
                           {institution.name}
                         </p>
-                        <p className="text-xs text-gray-500">{institution.type}</p>
+                        <p className="text-xs text-gray-500">{institution.address?.city || institution.address?.state || 'Location not specified'}</p>
                         <div className="flex items-center gap-1 mt-1">
-                          <span className={`font-bold ${getRatingColor(institution.rating)}`}>
-                            ★ {institution.rating}
+                          <span className={`font-bold ${getRatingColor(institution.rating?.average || 0)}`}>
+                            ★ {(institution.rating?.average || 0).toFixed(1)}
                           </span>
                           <span className="text-xs text-gray-500">
-                            ({institution.totalReviews})
+                            ({institution.rating?.count || 0} complaints)
                           </span>
                         </div>
                       </div>
@@ -187,37 +169,36 @@ export default function BrowseInstitutions() {
               {/* Main Info Card */}
               <div className="bg-white rounded-lg shadow-md p-6">
                 <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-4">
-                    <span className="text-6xl">{selectedInstitution.image}</span>
-                    <div>
-                      <h2 className="text-3xl font-bold text-gray-800">
-                        {selectedInstitution.name}
-                      </h2>
-                      <p className="text-gray-600">{selectedInstitution.type}</p>
-                      <p className="text-gray-600">📍 {selectedInstitution.location}</p>
-                    </div>
+                  <div>
+                    <h2 className="text-3xl font-bold text-gray-800">
+                      {selectedInstitution.name}
+                    </h2>
+                    <p className="text-gray-600">Email: {selectedInstitution.email}</p>
+                    <p className="text-gray-600">Location: {selectedInstitution.address?.city || ''}{selectedInstitution.address?.city && selectedInstitution.address?.state ? ', ' : ''}{selectedInstitution.address?.state || ''}</p>
                   </div>
                   <div className="text-right">
-                    <p className={`text-4xl font-bold ${getRatingColor(selectedInstitution.rating)}`}>
-                      ★ {selectedInstitution.rating}
+                    <p className={`text-4xl font-bold ${getRatingColor(selectedInstitution.rating?.average || 0)}`}>
+                      ★ {(selectedInstitution.rating?.average || 0).toFixed(1)}
                     </p>
                     <p className="text-sm text-gray-500">
-                      Based on {selectedInstitution.totalReviews} reviews
+                      Based on {selectedInstitution.rating?.count || 0} complaints
                     </p>
                   </div>
                 </div>
 
-                {/* Categories */}
-                <div className="flex flex-wrap gap-2">
-                  {selectedInstitution.categories.map((category, idx) => (
-                    <span
-                      key={idx}
-                      className="px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full font-semibold"
-                    >
-                      {category}
-                    </span>
-                  ))}
-                </div>
+                {/* Departments */}
+                {selectedInstitution.departments && selectedInstitution.departments.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedInstitution.departments.map((dept, idx) => (
+                      <span
+                        key={idx}
+                        className="px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full font-semibold"
+                      >
+                        {dept}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Statistics Cards */}
@@ -225,72 +206,39 @@ export default function BrowseInstitutions() {
                 <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-600">
                   <p className="text-sm text-gray-600 font-semibold">Total Complaints</p>
                   <p className="text-3xl font-bold text-blue-600">
-                    {selectedInstitution.complaints}
+                    {selectedInstitution.stats?.totalComplaints || 0}
                   </p>
                 </div>
                 <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-600">
                   <p className="text-sm text-gray-600 font-semibold">Resolved</p>
                   <p className="text-3xl font-bold text-green-600">
-                    {selectedInstitution.resolved}
+                    {selectedInstitution.stats?.resolvedComplaints || 0}
                   </p>
                 </div>
                 <div className="bg-purple-50 p-4 rounded-lg border-l-4 border-purple-600">
                   <p className="text-sm text-gray-600 font-semibold">Resolution Rate</p>
                   <p className="text-3xl font-bold text-purple-600">
-                    {getResolutionPercentage(selectedInstitution.resolved, selectedInstitution.complaints)}%
+                    {(selectedInstitution.stats?.resolutionRate || 0).toFixed(0)}%
                   </p>
                 </div>
               </div>
 
-              {/* Complaint Distribution */}
+              {/* Complaint Status */}
               <div className="bg-white rounded-lg shadow-md p-6">
                 <h3 className="text-lg font-bold text-gray-800 mb-4">
-                  <img src={searchIcon} alt="Complaint Distribution" className="w-5 h-5 inline mr-2" />
-                  Complaint Distribution
+                  Complaint Status Overview
                 </h3>
-                <div className="space-y-3">
-                  {selectedInstitution.categories.map((category) => (
-                    <div key={category} className="flex items-center gap-3">
-                      <span className="text-sm font-semibold text-gray-700 w-24">
-                        {category}
-                      </span>
-                      <div className="flex-1 bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-green-600 h-2 rounded-full"
-                          style={{ width: Math.random() * 100 + "%" }}
-                        ></div>
-                      </div>
-                      <span className="text-sm text-gray-600">
-                        {Math.floor(Math.random() * 20 + 5)}%
-                      </span>
-                    </div>
-                  ))}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-yellow-50 p-3 rounded-lg">
+                    <p className="text-sm text-gray-600">Pending</p>
+                    <p className="text-2xl font-bold text-yellow-600">{selectedInstitution.stats?.pendingComplaints || 0}</p>
+                  </div>
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <p className="text-sm text-gray-600">In Progress</p>
+                    <p className="text-2xl font-bold text-blue-600">{selectedInstitution.stats?.inProgressComplaints || 0}</p>
+                  </div>
                 </div>
               </div>
-
-              {/* Recent Reviews */}
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-bold text-gray-800 mb-4">Recent Reviews</h3>
-                <div className="space-y-3 max-h-48 overflow-y-auto">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="border-b pb-3 last:border-b-0">
-                      <div className="flex items-start justify-between mb-2">
-                        <p className="font-semibold text-gray-800">User {i}</p>
-                        <p className="text-yellow-500">★★★★★</p>
-                      </div>
-                      <p className="text-sm text-gray-600">
-                        "Great institution with responsive management to complaints."
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Action Button */}
-              <button className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition flex items-center justify-center gap-2">
-                <img src={complaintIcon} alt="Lodge Complaint" className="w-5 h-5" />
-                Lodge Complaint for this Institution
-              </button>
             </div>
           ) : (
             <div className="bg-white rounded-lg shadow-md p-12 text-center text-gray-500">
@@ -299,6 +247,8 @@ export default function BrowseInstitutions() {
           )}
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }
