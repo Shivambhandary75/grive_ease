@@ -1,19 +1,10 @@
-//Authentication route
-const router = require("express").Router();
-const {
-  Signup,
-  Login,
-  Logout,
-  ForgetPassword,
-  ResetPassword,
-  verifyEmail,
-} = require("../Controllers/UserController");
+const express = require("express");
+const { register, login, getMe } = require("../Controllers/UserController");
+const { auth } = require("../middleware/auth");
+const router = express.Router();
 
-router.post("/signup", Signup);
-router.post("/login", Login);
-router.post("/logout", Logout);
-router.post("/forget-password", ForgetPassword);
-router.post("/reset-password/:token", ResetPassword);
-router.get("/verify-email/:token", verifyEmail);
+router.post("/register", register);
+router.post("/login", login);
+router.get("/me", auth, getMe);
 
 module.exports = router;
