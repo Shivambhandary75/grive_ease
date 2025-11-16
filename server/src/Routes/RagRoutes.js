@@ -21,6 +21,19 @@ console.log(
 // Health
 router.get("/health", (req, res) => res.json({ ok: true }));
 
+// Clear RAG store (called on login)
+router.post("/clear", async (req, res) => {
+  try {
+    const { loadStore, saveStore } = require("../utils/ragUtils");
+    const emptyStore = { documents: [], chunks: [] };
+    saveStore(emptyStore);
+    res.json({ success: true, message: "RAG store cleared" });
+  } catch (e) {
+    console.error("/clear error", e);
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
 // Ingest raw text
 router.post("/ingest-text", async (req, res) => {
   try {

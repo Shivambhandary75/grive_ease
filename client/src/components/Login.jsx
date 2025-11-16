@@ -31,6 +31,16 @@ export default function Login({ switchToSignup }) {
         institution: response.user.institution,
       });
       
+      // Clear RAG store for fresh session
+      try {
+        await fetch("http://localhost:8080/api/ask-ai-rag/clear", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" }
+        });
+      } catch (ragErr) {
+        console.warn("Failed to clear RAG store:", ragErr);
+      }
+      
       navigate("/dashboard");
     } catch (err) {
       setError(err.message || "Login failed");

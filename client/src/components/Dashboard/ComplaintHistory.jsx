@@ -28,10 +28,6 @@ export default function ComplaintHistory() {
         return "bg-green-100 text-green-800";
       case "pending":
         return "bg-yellow-100 text-yellow-800";
-      case "under-review":
-        return "bg-blue-100 text-blue-800";
-      case "rejected":
-        return "bg-red-100 text-red-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -127,12 +123,6 @@ export default function ComplaintHistory() {
           <p className="text-gray-600 text-sm font-semibold">Pending</p>
           <p className="text-3xl font-bold text-gray-800 mt-2">
             {complaints.filter(c => c.status === "pending").length}
-          </p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-md border-l-4 border-purple-600">
-          <p className="text-gray-600 text-sm font-semibold">Under Review</p>
-          <p className="text-3xl font-bold text-gray-800 mt-2">
-            {complaints.filter(c => c.status === "under-review").length}
           </p>
         </div>
       </div>
