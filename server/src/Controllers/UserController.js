@@ -36,7 +36,20 @@ exports.register = async (req, res) => {
       employeeId,
     } = req.body;
 
-    console.log("Registration attempt:", { email, role, institutionName });
+    console.log("Registration attempt:", {
+      email,
+      role,
+      institutionName,
+      name,
+    });
+
+    // Validation
+    if (!name || !email || !password || !role || !institutionName) {
+      return res.status(400).json({
+        message:
+          "Missing required fields: name, email, password, role, institutionName",
+      });
+    }
 
     let user = await User.findOne({ email });
     if (user) {
@@ -127,7 +140,17 @@ exports.register = async (req, res) => {
     });
   } catch (error) {
     console.error("Registration error:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error("Error stack:", error.stack);
+    res.status(500).json({
+      message: "Server error during registration",
+      error: error.message,
+      details: error.errors
+        ? Object.keys(error.errors).map((key) => ({
+            field: key,
+            message: error.errors[key].message,
+          }))
+        : null,
+    });
   }
 };
 

@@ -31,6 +31,11 @@ export default function Signup({ switchToLogin }) {
       setError("Institution name is required");
       return;
     }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long");
+      return;
+    }
     
     setLoading(true);
     
@@ -62,7 +67,10 @@ export default function Signup({ switchToLogin }) {
       
       navigate("/dashboard");
     } catch (err) {
-      setError(err.message || "Registration failed");
+      console.error("Signup error:", err);
+      console.error("Error response:", err.response);
+      console.error("Error message:", err.message);
+      setError(err.message || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -147,6 +155,13 @@ export default function Signup({ switchToLogin }) {
           required
           disabled={loading}
         />
+        
+        {/* Helper text for institutional signup */}
+        {signupType === "institutional" && (
+          <p className="text-xs text-gray-600 -mt-2 px-1">
+            ℹ️ Creating a new institution? Use a unique name that doesn't exist yet.
+          </p>
+        )}
         
         {/* Conditional Fields */}
         {signupType === "student" && (
