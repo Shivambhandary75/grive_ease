@@ -30,23 +30,31 @@ export default function Statistics({ setActiveTab }) {
       let complaintsData;
       if (user?.role === 'institutional') {
         const dashboardStats = await institutionsAPI.getDashboardStats();
+        
+        // Extract stats from the response
+        const institutionStats = dashboardStats.institutionStats || {};
+        
         setStats({
-          total: dashboardStats.totalComplaints || 0,
-          resolved: dashboardStats.resolvedComplaints || 0,
-          pending: dashboardStats.pendingComplaints || 0
+          total: institutionStats.totalComplaints || 0,
+          resolved: institutionStats.resolvedComplaints || 0,
+          pending: institutionStats.pendingComplaints || 0
         });
         
         complaintsData = await complaintsAPI.getInstitutionalComplaints({ limit: 3 });
       } else {
-        complaintsData = await complaintsAPI.getHistory({ limit: 3 });
+        // Fetch ALL complaints for stats calculation
+        const allComplaintsData = await complaintsAPI.getHistory({ limit: 1000 });
+        const allComplaints = allComplaintsData.complaints || [];
         
-        // Calculate stats from complaints
-        const allComplaints = complaintsData.complaints || [];
+        // Set accurate stats
         setStats({
           total: allComplaints.length,
           resolved: allComplaints.filter(c => c.status === 'resolved').length,
           pending: allComplaints.filter(c => c.status === 'pending').length
         });
+        
+        // Get recent 3 for display
+        complaintsData = await complaintsAPI.getHistory({ limit: 3 });
       }
       
       setRecentComplaints(complaintsData.complaints || []);
