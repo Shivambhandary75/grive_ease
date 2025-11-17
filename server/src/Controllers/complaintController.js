@@ -1,47 +1,51 @@
-const Complaint = require('../Models/Complaint');
-const Institution = require('../Models/Institution');
-const User = require('../Models/UserModel');
+const Complaint = require("../Models/Complaint");
+const Institution = require("../Models/Institution");
+const User = require("../Models/UserModel");
 
 // Lodge complaint (Student/Teacher)
 exports.lodgeComplaint = async (req, res) => {
   try {
-    const { 
-      title, 
-      description, 
-      accusedUserId, 
-      accusedType, 
+    const {
+      title,
+      description,
+      accusedUserId,
+      accusedType,
       accusedName,
-      category, 
-      severity, 
+      category,
+      severity,
       isAnonymous,
-      tags 
+      tags,
     } = req.body;
 
-    if (!['student', 'teacher', 'institutional_facility'].includes(accusedType)) {
-      return res.status(400).json({ message: 'Invalid accused type' });
+    if (
+      !["student", "teacher", "institutional_facility"].includes(accusedType)
+    ) {
+      return res.status(400).json({ message: "Invalid accused type" });
     }
 
     let accused = { type: accusedType };
-    
-    if (accusedType === 'institutional_facility') {
+
+    if (accusedType === "institutional_facility") {
       accused.institution = req.user.institution;
-      accused.name = accusedName || 'Institutional Facility';
+      accused.name = accusedName || "Institutional Facility";
     } else {
       if (!accusedUserId) {
-        return res.status(400).json({ message: 'Accused user ID is required' });
+        return res.status(400).json({ message: "Accused user ID is required" });
       }
-      
+
       const accusedUser = await User.findOne({
         _id: accusedUserId,
-        institution: req.user.institution
+        institution: req.user.institution,
       });
-      
+
       if (!accusedUser) {
-        return res.status(404).json({ message: 'Accused user not found in your institution' });
+        return res
+          .status(404)
+          .json({ message: "Accused user not found in your institution" });
       }
-      
+
       accused.user = accusedUserId;
-      accused.name = isAnonymous ? 'Anonymous' : accusedUser.name;
+      accused.name = isAnonymous ? "Anonymous" : accusedUser.name;
     }
 
     const complaint = new Complaint({
@@ -54,28 +58,36 @@ exports.lodgeComplaint = async (req, res) => {
       isAnonymous: isAnonymous || false,
       institution: req.user.institution,
       tags: tags || [],
-      priority: severity === 'critical' ? 'urgent' : 
-               severity === 'high' ? 'high' : 'medium'
+      priority:
+        severity === "critical"
+          ? "urgent"
+          : severity === "high"
+          ? "high"
+          : "medium",
     });
 
     await complaint.save();
 
     // Update institution stats
-    const institution = await Institution.findById(req.user.institution);
-    await institution.updateStats();
+    if (req.user.institution) {
+      const institution = await Institution.findById(req.user.institution);
+      if (institution) {
+        await institution.updateStats();
+      }
+    }
 
-    res.status(201).json({ 
-      message: 'Complaint lodged successfully', 
+    res.status(201).json({
+      message: "Complaint lodged successfully",
       complaint: {
         id: complaint._id,
         title: complaint.title,
         status: complaint.status,
-        createdAt: complaint.createdAt
-      }
+        createdAt: complaint.createdAt,
+      },
     });
   } catch (error) {
-    console.error('Lodge complaint error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error("Lodge complaint error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -83,15 +95,15 @@ exports.lodgeComplaint = async (req, res) => {
 exports.getComplaintsAgainstMe = async (req, res) => {
   try {
     const { page = 1, limit = 10, status } = req.query;
-    
-    let filter = { 
+
+    let filter = {
       $or: [
-        { 'accused.user': req.user._id },
-        { 
-          'accused.name': req.user.name,
-          'accused.user': { $exists: false }
-        }
-      ]
+        { "accused.user": req.user._id },
+        {
+          "accused.name": req.user.name,
+          "accused.user": { $exists: false },
+        },
+      ],
     };
 
     if (status) {
@@ -99,9 +111,9 @@ exports.getComplaintsAgainstMe = async (req, res) => {
     }
 
     const complaints = await Complaint.find(filter)
-      .populate('complainant', 'name role')
-      .populate('institution', 'name')
-      .populate('resolution.resolvedBy', 'name')
+      .populate("complainant", "name role")
+      .populate("institution", "name")
+      .populate("resolution.resolvedBy", "name")
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -112,11 +124,11 @@ exports.getComplaintsAgainstMe = async (req, res) => {
       complaints,
       totalPages: Math.ceil(total / limit),
       currentPage: parseInt(page),
-      total
+      total,
     });
   } catch (error) {
-    console.error('Get complaints on me error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error("Get complaints on me error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -124,16 +136,16 @@ exports.getComplaintsAgainstMe = async (req, res) => {
 exports.getComplaintHistory = async (req, res) => {
   try {
     const { page = 1, limit = 10, status } = req.query;
-    
+
     let filter = { complainant: req.user._id };
     if (status) {
       filter.status = status;
     }
 
     const complaints = await Complaint.find(filter)
-      .populate('accused.user', 'name role studentId employeeId')
-      .populate('institution', 'name')
-      .populate('resolution.resolvedBy', 'name')
+      .populate("accused.user", "name role studentId employeeId")
+      .populate("institution", "name")
+      .populate("resolution.resolvedBy", "name")
       .sort({ createdAt: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -144,11 +156,11 @@ exports.getComplaintHistory = async (req, res) => {
       complaints,
       totalPages: Math.ceil(total / limit),
       currentPage: parseInt(page),
-      total
+      total,
     });
   } catch (error) {
-    console.error('Get complaint history error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error("Get complaint history error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -156,59 +168,62 @@ exports.getComplaintHistory = async (req, res) => {
 exports.getComplaintDetails = async (req, res) => {
   try {
     const complaint = await Complaint.findById(req.params.id)
-      .populate('complainant', 'name role studentId employeeId')
-      .populate('accused.user', 'name role studentId employeeId')
-      .populate('resolution.resolvedBy', 'name')
-      .populate('institution', 'name');
+      .populate("complainant", "name role studentId employeeId")
+      .populate("accused.user", "name role studentId employeeId")
+      .populate("resolution.resolvedBy", "name")
+      .populate("institution", "name");
 
     if (!complaint) {
-      return res.status(404).json({ message: 'Complaint not found' });
+      return res.status(404).json({ message: "Complaint not found" });
     }
 
     // Check if user has permission to view this complaint
-    const canView = 
+    const canView =
       complaint.complainant._id.toString() === req.user._id.toString() ||
-      (complaint.accused.user && complaint.accused.user._id.toString() === req.user._id.toString()) ||
-      (req.user.role === 'institutional' && complaint.institution._id.toString() === req.user.institution.toString());
+      (complaint.accused.user &&
+        complaint.accused.user._id.toString() === req.user._id.toString()) ||
+      (req.user.role === "institutional" &&
+        complaint.institution._id.toString() ===
+          req.user.institution.toString());
 
     if (!canView) {
-      return res.status(403).json({ message: 'Access denied' });
+      return res.status(403).json({ message: "Access denied" });
     }
 
     res.json(complaint);
   } catch (error) {
-    console.error('Get complaint details error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error("Get complaint details error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
 // Institutional: Get all complaints for institution
 exports.getInstitutionalComplaints = async (req, res) => {
   try {
-    const { 
-      status, 
-      category, 
+    const {
+      status,
+      category,
       severity,
       priority,
-      page = 1, 
+      page = 1,
       limit = 10,
-      sortBy = 'createdAt',
-      sortOrder = 'desc'
+      sortBy = "createdAt",
+      sortOrder = "desc",
     } = req.query;
-    
+
     let filter = { institution: req.user.institution };
-    
+
     if (status) filter.status = status;
     if (category) filter.category = category;
     if (severity) filter.severity = severity;
     if (priority) filter.priority = priority;
 
-    const sort = { [sortBy]: sortOrder === 'desc' ? -1 : 1 };
+    const sort = { [sortBy]: sortOrder === "desc" ? -1 : 1 };
 
     const complaints = await Complaint.find(filter)
-      .populate('complainant', 'name role studentId employeeId department')
-      .populate('accused.user', 'name role studentId employeeId department')
-      .populate('resolution.resolvedBy', 'name')
+      .populate("complainant", "name role studentId employeeId department")
+      .populate("accused.user", "name role studentId employeeId department")
+      .populate("resolution.resolvedBy", "name")
       .sort(sort)
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -222,16 +237,16 @@ exports.getInstitutionalComplaints = async (req, res) => {
         $group: {
           _id: null,
           statusCounts: {
-            $push: '$status'
+            $push: "$status",
           },
           categoryCounts: {
-            $push: '$category'
+            $push: "$category",
           },
           severityCounts: {
-            $push: '$severity'
-          }
-        }
-      }
+            $push: "$severity",
+          },
+        },
+      },
     ]);
 
     res.json({
@@ -239,11 +254,11 @@ exports.getInstitutionalComplaints = async (req, res) => {
       totalPages: Math.ceil(total / limit),
       currentPage: parseInt(page),
       total,
-      stats: stats[0] || {}
+      stats: stats[0] || {},
     });
   } catch (error) {
-    console.error('Get institutional complaints error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error("Get institutional complaints error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -251,27 +266,27 @@ exports.getInstitutionalComplaints = async (req, res) => {
 exports.updateComplaintStatus = async (req, res) => {
   try {
     const { status, resolutionDescription, resolutionSteps } = req.body;
-    
+
     const complaint = await Complaint.findOne({
       _id: req.params.id,
-      institution: req.user.institution
+      institution: req.user.institution,
     });
 
     if (!complaint) {
-      return res.status(404).json({ message: 'Complaint not found' });
+      return res.status(404).json({ message: "Complaint not found" });
     }
 
     complaint.status = status;
-    
-    if (status === 'resolved') {
+
+    if (status === "resolved") {
       complaint.resolution = {
         description: resolutionDescription,
         resolvedBy: req.user._id,
         resolvedAt: new Date(),
-        resolutionSteps: resolutionSteps || []
+        resolutionSteps: resolutionSteps || [],
       };
-    } else if (status === 'in_progress') {
-      complaint.priority = 'high';
+    } else if (status === "in_progress") {
+      complaint.priority = "high";
     }
 
     await complaint.save();
@@ -280,18 +295,18 @@ exports.updateComplaintStatus = async (req, res) => {
     const institution = await Institution.findById(req.user.institution);
     await institution.updateStats();
 
-    res.json({ 
-      message: 'Complaint status updated successfully', 
+    res.json({
+      message: "Complaint status updated successfully",
       complaint: {
         id: complaint._id,
         status: complaint.status,
         priority: complaint.priority,
-        resolution: complaint.resolution
-      }
+        resolution: complaint.resolution,
+      },
     });
   } catch (error) {
-    console.error('Update complaint status error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error("Update complaint status error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -300,18 +315,18 @@ exports.startPoll = async (req, res) => {
   try {
     const complaint = await Complaint.findOne({
       _id: req.params.id,
-      institution: req.user.institution
+      institution: req.user.institution,
     });
 
     if (!complaint) {
-      return res.status(404).json({ message: 'Complaint not found' });
+      return res.status(404).json({ message: "Complaint not found" });
     }
 
     // Check if institution has poll feature
     const institution = await Institution.findById(req.user.institution);
-    if (!institution.features.polls && institution.subscription === 'free') {
-      return res.status(403).json({ 
-        message: 'Poll feature is not available for your subscription plan' 
+    if (!institution.features.polls && institution.subscription === "free") {
+      return res.status(403).json({
+        message: "Poll feature is not available for your subscription plan",
       });
     }
 
@@ -321,18 +336,18 @@ exports.startPoll = async (req, res) => {
       authenticityScore: 0,
       totalVotes: 0,
       startedBy: req.user._id,
-      startedAt: new Date()
+      startedAt: new Date(),
     };
 
     await complaint.save();
 
-    res.json({ 
-      message: 'Poll started successfully', 
-      poll: complaint.poll 
+    res.json({
+      message: "Poll started successfully",
+      poll: complaint.poll,
     });
   } catch (error) {
-    console.error('Start poll error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error("Start poll error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -340,22 +355,27 @@ exports.startPoll = async (req, res) => {
 exports.voteInPoll = async (req, res) => {
   try {
     const { vote, comment } = req.body;
-    
-    const complaint = await Complaint.findById(req.params.id)
-      .populate('institution');
-    
+
+    const complaint = await Complaint.findById(req.params.id).populate(
+      "institution"
+    );
+
     if (!complaint || !complaint.poll.isActive) {
-      return res.status(400).json({ message: 'Poll not active or complaint not found' });
+      return res
+        .status(400)
+        .json({ message: "Poll not active or complaint not found" });
     }
 
     // Check if user belongs to the same institution
-    if (complaint.institution._id.toString() !== req.user.institution.toString()) {
-      return res.status(403).json({ message: 'Access denied' });
+    if (
+      complaint.institution._id.toString() !== req.user.institution.toString()
+    ) {
+      return res.status(403).json({ message: "Access denied" });
     }
 
     // Check if user already voted
     const existingVoteIndex = complaint.poll.votes.findIndex(
-      v => v.voter.toString() === req.user._id.toString()
+      (v) => v.voter.toString() === req.user._id.toString()
     );
 
     if (existingVoteIndex > -1) {
@@ -369,35 +389,43 @@ exports.voteInPoll = async (req, res) => {
         voter: req.user._id,
         vote,
         comment,
-        votedAt: new Date()
+        votedAt: new Date(),
       });
     }
 
     // Calculate authenticity score
     const votes = complaint.poll.votes;
-    const authenticCount = votes.filter(v => v.vote === 'authentic').length;
-    const exaggeratedCount = votes.filter(v => v.vote === 'exaggerated').length;
-    const falseCount = votes.filter(v => v.vote === 'false').length;
-    const needsInvestigationCount = votes.filter(v => v.vote === 'needs_investigation').length;
-    
-    const totalWeighted = (authenticCount * 1) + (exaggeratedCount * 0.5) + (falseCount * 0) + (needsInvestigationCount * 0.75);
+    const authenticCount = votes.filter((v) => v.vote === "authentic").length;
+    const exaggeratedCount = votes.filter(
+      (v) => v.vote === "exaggerated"
+    ).length;
+    const falseCount = votes.filter((v) => v.vote === "false").length;
+    const needsInvestigationCount = votes.filter(
+      (v) => v.vote === "needs_investigation"
+    ).length;
+
+    const totalWeighted =
+      authenticCount * 1 +
+      exaggeratedCount * 0.5 +
+      falseCount * 0 +
+      needsInvestigationCount * 0.75;
     complaint.poll.authenticityScore = totalWeighted / votes.length;
     complaint.poll.totalVotes = votes.length;
 
     await complaint.save();
 
-    res.json({ 
-      message: 'Vote recorded successfully', 
+    res.json({
+      message: "Vote recorded successfully",
       vote: {
         vote,
         comment,
         authenticityScore: complaint.poll.authenticityScore,
-        totalVotes: complaint.poll.totalVotes
-      }
+        totalVotes: complaint.poll.totalVotes,
+      },
     });
   } catch (error) {
-    console.error('Vote in poll error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error("Vote in poll error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -406,11 +434,11 @@ exports.endPoll = async (req, res) => {
   try {
     const complaint = await Complaint.findOne({
       _id: req.params.id,
-      institution: req.user.institution
+      institution: req.user.institution,
     });
 
     if (!complaint) {
-      return res.status(404).json({ message: 'Complaint not found' });
+      return res.status(404).json({ message: "Complaint not found" });
     }
 
     complaint.poll.isActive = false;
@@ -418,22 +446,22 @@ exports.endPoll = async (req, res) => {
 
     // Update complaint priority based on poll results
     if (complaint.poll.authenticityScore < 0.3) {
-      complaint.priority = 'low';
+      complaint.priority = "low";
     } else if (complaint.poll.authenticityScore < 0.7) {
-      complaint.priority = 'medium';
+      complaint.priority = "medium";
     } else {
-      complaint.priority = 'high';
+      complaint.priority = "high";
     }
 
     await complaint.save();
 
-    res.json({ 
-      message: 'Poll ended successfully', 
+    res.json({
+      message: "Poll ended successfully",
       poll: complaint.poll,
-      updatedPriority: complaint.priority
+      updatedPriority: complaint.priority,
     });
   } catch (error) {
-    console.error('End poll error:', error);
-    res.status(500).json({ message: 'Server error', error: error.message });
+    console.error("End poll error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
