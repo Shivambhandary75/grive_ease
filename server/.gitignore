@@ -1,2 +1,9 @@
 node_modules
 .env
+
+# Runtime data
+src/data/rag_store.json
+
+# Uploads
+uploads/*
+!uploads/.gitkeep
